@@ -1,0 +1,55 @@
+/**
+ * Cedar SCORM Overrides — cedar-custom.css
+ *
+ * Loaded LAST via <link> in SCORM index.html, after h5p-bundle.css.
+ * Paths are relative to assets/cedar-custom.css → ../fonts/ = fonts/ at zip root.
+ *
+ * Only font declarations are here. H5P's own CSS (h5p-bundle.css) handles
+ * button layout, container queries, and icon-only behaviour correctly when
+ * loaded as an external file. Do not override button classes here.
+ */
+
+/* ── Libre Franklin ──────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Libre Franklin';
+  src: url('../fonts/libre-franklin-400.woff2') format('woff2'),
+       url('../fonts/libre-franklin-400.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Libre Franklin';
+  src: url('../fonts/libre-franklin-700.woff2') format('woff2'),
+       url('../fonts/libre-franklin-700.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── H5PFontIcons ────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'H5PFontIcons';
+  src: url('../fonts/h5p-font-icons.woff') format('woff'),
+       url('../fonts/h5p-font-icons.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* ── Apply Libre Franklin as H5P body font ───────────────────────────────── */
+
+:root {
+  --h5p-theme-font-name: 'Libre Franklin', sans-serif;
+}
+
+.h5p-content {
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+/* Target text elements only; skip icon-font spans */
+.h5p-content *:not([class*='joubel-icon']):not([class*='h5p-icon']):not([class*='FontIcon']):not([class*='h5p-font']) {
+  font-family: 'Libre Franklin', sans-serif;
+}

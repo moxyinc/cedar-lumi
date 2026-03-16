@@ -11,7 +11,7 @@ import {
 } from '@lumieducation/h5p-server';
 
 import { Context } from '../boot';
-import scormTemplate from './templates/scorm';
+import scormTemplate, { createCedarScormTemplate, BundleCapture } from './templates/scorm';
 import simpleTemplate from './templates/simple';
 import reporterTemplate from './templates/reporter';
 
@@ -23,7 +23,31 @@ const cleanAndTrim = (text: string): string => {
 };
 
 /**
- * Creates a SCORM package.
+ * Creates a Cedar SCORM package with external JS/CSS asset files.
+ *
+ * SCORM zip structure:
+ *   index.html            — lean HTML shell, references external files
+ *   SCORM_API_wrapper.js  — SCORM 1.2 API wrapper
+ *   h5p-adaptor.js        — bridges H5P xAPI events to SCORM
+ *   assets/
+ *     h5p-bundle.js       — all H5P library JavaScript
+ *     h5p-bundle.css      — all H5P library CSS
+ *     cedar-custom.js     — Cedar icon-only fix + H5P hooks
+ *     cedar-custom.css    — Cedar fonts + button overrides
+ *   fonts/
+ *     libre-franklin-400.woff2
+ *     libre-franklin-400.woff
+ *     libre-franklin-700.woff2
+ *     libre-franklin-700.woff
+ *     h5p-font-icons.woff
+ *     h5p-font-icons.ttf
+ *   content/              — H5P content resources (images, video, etc.)
+ *
+ * Why external files:
+ *   H5P library JS contains raw `</script>` strings. Embedding the bundle
+ *   inline in an HTML <script> block causes the HTML parser to close the
+ *   block early, preventing injected fix scripts from running. Writing JS as
+ *   separate .js files bypasses the HTML parser entirely.
  */
 export async function exportScorm(
   context: Context,
@@ -32,10 +56,16 @@ export async function exportScorm(
   path: string,
   contentId: string,
   user: IUser,
-  options: { language: string; masteryScore: number; showRights: boolean }
+  options: { language: string; masteryScore: number; showRights: boolean },
+  bundleCapture: BundleCapture
 ): Promise<void> {
   await withDir(
     async ({ path: tmpDir }) => {
+      // Create subdirectories for external assets and fonts
+      await fsExtra.mkdirp(_path.join(tmpDir, 'assets'));
+      await fsExtra.mkdirp(_path.join(tmpDir, 'fonts'));
+
+      // Copy SCORM API files to zip root
       await fsExtra.copyFile(
         `${_path.join(context.paths.app, 'assets/scorm-client/h5p-adaptor.js')}`,
         _path.join(tmpDir, 'h5p-adaptor.js')
@@ -45,6 +75,7 @@ export async function exportScorm(
         _path.join(tmpDir, 'SCORM_API_wrapper.js')
       );
 
+      // Run the exporter — this calls our cedar template, which populates bundleCapture
       const { html, contentFiles } =
         await htmlExporter.createBundleWithExternalContentResources(
           contentId,
@@ -56,7 +87,44 @@ export async function exportScorm(
             showLicenseButton: options.showRights
           }
         );
+
+      // Write the lean HTML shell
       await fsExtra.writeFile(_path.join(tmpDir, 'index.html'), html);
+
+      // Write the JS and CSS bundles as separate external files
+      await fsExtra.writeFile(
+        _path.join(tmpDir, 'assets', 'h5p-bundle.js'),
+        bundleCapture.scripts
+      );
+      await fsExtra.writeFile(
+        _path.join(tmpDir, 'assets', 'h5p-bundle.css'),
+        bundleCapture.styles
+      );
+
+      // Copy Cedar custom JS and CSS from the cedar/ directory
+      const cedarDir = _path.join(context.paths.app, 'cedar');
+      await fsExtra.copyFile(
+        _path.join(cedarDir, 'cedar.js'),
+        _path.join(tmpDir, 'assets', 'cedar-custom.js')
+      );
+      await fsExtra.copyFile(
+        _path.join(cedarDir, 'cedar.css'),
+        _path.join(tmpDir, 'assets', 'cedar-custom.css')
+      );
+
+      // Copy Cedar font files (referenced by cedar-custom.css as ../fonts/)
+      const cedarFonts = _path.join(cedarDir, 'fonts');
+      const targetFonts = _path.join(tmpDir, 'fonts');
+      const fontFiles = await fsExtra.readdir(cedarFonts);
+      for (const fontFile of fontFiles) {
+        // eslint-disable-next-line no-await-in-loop
+        await fsExtra.copyFile(
+          _path.join(cedarFonts, fontFile),
+          _path.join(targetFonts, fontFile)
+        );
+      }
+
+      // Write H5P content resource files (images, video, etc.)
       // eslint-disable-next-line no-restricted-syntax
       for (const filename of contentFiles) {
         const fn = _path.join(tmpDir, filename);
@@ -213,6 +281,44 @@ export default async function exportH5P(
     // moment
   }
 
+  if (options.format === 'scorm') {
+    // Cedar SCORM path: use external JS/CSS files to avoid the </script>
+    // HTML-parser injection problem. A BundleCapture object is passed into the
+    // template closure; after the template runs it contains the raw bundles
+    // which exportScorm() writes as assets/h5p-bundle.js / h5p-bundle.css.
+    const bundleCapture: BundleCapture = { scripts: '', styles: '' };
+    const htmlExporter = new HtmlExporter(
+      h5pEditor.libraryStorage,
+      h5pEditor.contentStorage,
+      h5pEditor.config,
+      `${_path.join(context.paths.app, 'assets/h5p/core')}`,
+      `${_path.join(context.paths.app, 'assets/h5p/editor')}`,
+      createCedarScormTemplate(
+        bundleCapture,
+        options.marginX,
+        options.marginY,
+        options.restrictWidthAndCenter ? options.maxWidth : undefined
+      ),
+      translationFunction
+    );
+    await exportScorm(
+      context,
+      htmlExporter,
+      h5pEditor,
+      filePath,
+      contentId,
+      user,
+      {
+        language,
+        showRights: options.showRights,
+        masteryScore: options.masteryScore
+      },
+      bundleCapture
+    );
+    return;
+  }
+
+  // Non-SCORM paths: create HtmlExporter with format-specific template
   const htmlExporter = new HtmlExporter(
     h5pEditor.libraryStorage,
     h5pEditor.contentStorage,
@@ -220,10 +326,10 @@ export default async function exportH5P(
     `${_path.join(context.paths.app, 'assets/h5p/core')}`,
     `${_path.join(context.paths.app, 'assets/h5p/editor')}`,
     // eslint-disable-next-line no-nested-ternary
-    options.includeReporter && options.format !== 'scorm'
+    options.includeReporter
       ? reporterTemplate
-      : options.format === 'scorm'
-        ? scormTemplate(
+      : options.format === 'external'
+        ? simpleTemplate(
             options.marginX,
             options.marginY,
             options.restrictWidthAndCenter ? options.maxWidth : undefined,
@@ -257,20 +363,6 @@ export default async function exportH5P(
         language,
         showRights: options.showRights,
         showEmbed: options.showEmbed
-      }
-    );
-  } else if (options.format === 'scorm') {
-    await exportScorm(
-      context,
-      htmlExporter,
-      h5pEditor,
-      filePath,
-      contentId,
-      user,
-      {
-        language,
-        showRights: options.showRights,
-        masteryScore: options.masteryScore
       }
     );
   }

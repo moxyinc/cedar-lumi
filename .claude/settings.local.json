@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^$\")",
+      "Bash(git -C /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould log --oneline -5)",
+      "Bash(ls /Users/moxy/Lumi/assets/h5p/core/fonts/h5p-font-icons*)",
+      "Bash(cp /Users/moxy/Lumi/assets/h5p/core/fonts/libre-franklin/libre-franklin-400.woff2 /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/cedar/fonts/)",
+      "Bash(cp /Users/moxy/Lumi/assets/h5p/core/fonts/libre-franklin/libre-franklin-400.woff /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/cedar/fonts/)",
+      "Bash(cp /Users/moxy/Lumi/assets/h5p/core/fonts/libre-franklin/libre-franklin-700.woff2 /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/cedar/fonts/)",
+      "Bash(cp /Users/moxy/Lumi/assets/h5p/core/fonts/libre-franklin/libre-franklin-700.woff /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/cedar/fonts/)",
+      "Bash(cp /Users/moxy/Lumi/assets/h5p/core/fonts/h5p-font-icons.woff /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/cedar/fonts/)",
+      "Bash(cp /Users/moxy/Lumi/assets/h5p/core/fonts/h5p-font-icons.ttf /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/cedar/fonts/)",
+      "Bash(npx tsc:*)",
+      "Bash(git -C /Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould status --short)",
+      "Bash(node -e \"const f = require\\(''/Users/moxy/cedar-lumi/.claude/worktrees/nervous-gould/node_modules/@lumieducation/h5p-html-exporter/build/framedTemplate.js''\\); console.log\\(typeof f.default\\);\")",
+      "Bash(rm -rf /tmp/scorm-v73)",
+      "Bash(mkdir /tmp/scorm-v73)",
+      "Bash(unzip -q \"/Users/moxy/Documents/Clients/CDE/CEDAR/CEDAR Lumi/Welcome CL V7.3.zip\" -d /tmp/scorm-v73)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/scorm-v73/assets/**)"
+    ]
+  }
+}
