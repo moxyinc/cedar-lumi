@@ -24,6 +24,7 @@ out
 .env.production.local
 
 # misc
+.claude/
 .DS_Store
 .vercel
 .netlify
