@@ -1,7 +1,8 @@
 var scorm = pipwerks.SCORM;
 
 function init() {
-  scorm.init();
+  var ok = scorm.init();
+  console.log('[h5p-adaptor] scorm.init():', ok, '| version:', scorm.version);
 }
 
 function set(param, value) {
@@ -25,6 +26,7 @@ window.onunload = function () {
 };
 
 var onCompleted = function (result) {
+  console.log('[h5p-adaptor] onCompleted called, result:', JSON.stringify(result));
   var masteryScore;
   if (scorm.version == '2004') {
     masteryScore = scorm.get('cmi.scaled_passing_score');
@@ -36,10 +38,10 @@ var onCompleted = function (result) {
     scorm.set('cmi.core.score.raw', result.score.scaled * 100);
     scorm.set('cmi.core.score.min', '0');
     scorm.set('cmi.core.score.max', '100');
-    scorm.set('cmi.core.score.scaled', result.score.scaled * 100);
   }
 
   if (!result.score || masteryScore === undefined || isNaN(masteryScore)) {
+    console.log('[h5p-adaptor] setting status: completed');
     scorm.status('set', 'completed');
   } else {
     var passed = result.score.scaled >= masteryScore;
@@ -47,23 +49,31 @@ var onCompleted = function (result) {
       scorm.status('set', 'completed');
       scorm.set('cmi.success_status', passed ? 'passed' : 'failed');
     } else if (scorm.version == '1.2') {
+      console.log('[h5p-adaptor] setting status:', passed ? 'passed' : 'failed');
       scorm.status('set', passed ? 'passed' : 'failed');
     }
   }
 };
 
-// H5P.externalDispatcher only relays events in Lumi's iframe architecture
-// (H5P.isFramed && H5P.externalEmbed === false). In a standalone SCORM page,
-// xAPI events fire on H5P.instances directly. This file loads after h5p-bundle.js
-// so H5P.instances is already populated.
-(H5P.instances || []).forEach(function (instance) {
+// Debug: log H5P instance count
+console.log('[h5p-adaptor] H5P.instances count:', (H5P.instances || []).length);
+
+// Hook xAPI events via H5P.instances (instances are created synchronously during H5P.init)
+(H5P.instances || []).forEach(function (instance, i) {
+  console.log('[h5p-adaptor] attaching xAPI listener to instance', i, instance);
   H5P.on(instance, 'xAPI', function (event) {
-    var result = event.data.statement.result;
-    var verbId = event.data.statement.verb && event.data.statement.verb.id
-      ? event.data.statement.verb.id.split('/').pop()
-      : '';
-    if ((verbId === 'completed' || verbId === 'answered') && result) {
-      onCompleted(result);
+    var stmt = event.data.statement;
+    var verbId = stmt.verb && stmt.verb.id ? stmt.verb.id.split('/').pop() : '';
+    console.log('[h5p-adaptor] xAPI event verb:', verbId, '| has result:', !!stmt.result);
+    if ((verbId === 'completed' || verbId === 'answered') && stmt.result) {
+      onCompleted(stmt.result);
     }
   });
+});
+
+// Also hook externalDispatcher as a fallback (xAPI events are external:true so this fires too)
+H5P.externalDispatcher.on('xAPI', function (event) {
+  var stmt = event.data.statement;
+  var verbId = stmt.verb && stmt.verb.id ? stmt.verb.id.split('/').pop() : '';
+  console.log('[h5p-adaptor] externalDispatcher xAPI verb:', verbId, '| has result:', !!stmt.result);
 });
