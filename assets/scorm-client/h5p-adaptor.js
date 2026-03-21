@@ -26,13 +26,13 @@ var setCompletion = function (result) {
     masteryScore = scorm.get('cmi.student_data.mastery_score') / 100;
   }
 
-  if (result.score) {
+  if (result && result.score) {
     scorm.set('cmi.core.score.raw', result.score.scaled * 100);
     scorm.set('cmi.core.score.min', '0');
     scorm.set('cmi.core.score.max', '100');
   }
 
-  if (!result.score || masteryScore === undefined || isNaN(masteryScore)) {
+  if (!result || !result.score || masteryScore === undefined || isNaN(masteryScore)) {
     scorm.status('set', 'completed');
   } else {
     var passed = result.score.scaled >= masteryScore;
@@ -48,7 +48,6 @@ var setCompletion = function (result) {
 var setInteraction = function (stmt) {
   var n = interactionCount++;
 
-  // Question title from object.definition.name, fallback to object.id fragment
   var name = stmt.object && stmt.object.definition && stmt.object.definition.name
     ? (stmt.object.definition.name['en-US'] || stmt.object.definition.name[Object.keys(stmt.object.definition.name)[0]])
     : null;
@@ -59,31 +58,37 @@ var setInteraction = function (stmt) {
     scorm.set('cmi.interactions.' + n + '.id', name);
   }
 
-  // Interaction type (SCORM 1.2: choice, fill-in, matching, performance, sequencing, likert, numeric)
   var iType = stmt.object && stmt.object.definition && stmt.object.definition.interactionType
     ? stmt.object.definition.interactionType
     : 'choice';
   scorm.set('cmi.interactions.' + n + '.type', iType);
 
-  // Result
+  // Determine result: prefer success flag, fall back to score
+  var resultVal = 'unanticipated';
   if (stmt.result) {
-    var resultVal = stmt.result.success === true ? 'correct'
-      : stmt.result.success === false ? 'wrong'
-      : 'unanticipated';
-    scorm.set('cmi.interactions.' + n + '.result', resultVal);
+    if (stmt.result.success === true) {
+      resultVal = 'correct';
+    } else if (stmt.result.success === false) {
+      resultVal = 'wrong';
+    } else if (stmt.result.score) {
+      resultVal = stmt.result.score.scaled === 1 ? 'correct' : 'wrong';
+    }
   }
+  scorm.set('cmi.interactions.' + n + '.result', resultVal);
 };
 
-// xAPI events are external:true — they always reach H5P.externalDispatcher.
-// answered  → record individual interaction (populates Target in TC)
-// completed → set overall lesson_status / score (single Scored row in TC)
 H5P.externalDispatcher.on('xAPI', function (event) {
   var stmt = event.data.statement;
   var verbId = stmt.verb && stmt.verb.id ? stmt.verb.id.split('/').pop() : '';
 
-  if (verbId === 'answered' && stmt.result) {
-    setInteraction(stmt);
-  } else if (verbId === 'completed' && stmt.result) {
-    setCompletion(stmt.result);
+  if (verbId === 'answered') {
+    if (stmt.result) {
+      setInteraction(stmt);
+      // Set score/status on answered as fallback (in case completed never fires)
+      setCompletion(stmt.result);
+    }
+  } else if (verbId === 'completed') {
+    // completed may fire with or without a result — always set lesson_status
+    setCompletion(stmt.result || null);
   }
 });
