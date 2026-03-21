@@ -58,9 +58,8 @@ export function createCedarScormTemplate(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>H5PIntegration = ${JSON.stringify(integration)};</script>
+  <script>H5PIntegration = ${JSON.stringify(integration)}; H5PIntegration.reportingIsEnabled = true;</script>
   <script type="text/javascript" src="SCORM_API_wrapper.js"></script>
-  <script type="text/javascript" src="h5p-adaptor.js"></script>
   <link rel="stylesheet" href="assets/h5p-bundle.css">
   <link rel="stylesheet" href="assets/cedar-custom.css">
 </head>
@@ -69,6 +68,7 @@ export function createCedarScormTemplate(
     <div style="${widthStyle}" class="h5p-content h5p-theme h5p-large lag" data-content-id="${contentId}"></div>
   </div>
   <script type="text/javascript" src="assets/h5p-bundle.js"></script>
+  <script type="text/javascript" src="h5p-adaptor.js"></script>
   <script type="text/javascript" src="assets/cedar-custom.js"></script>
 </body>
 </html>`;
