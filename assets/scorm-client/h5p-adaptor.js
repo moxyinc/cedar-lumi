@@ -1,7 +1,21 @@
 var scorm = pipwerks.SCORM;
+var tcEndpoint = window.location.origin + '/wp-admin/admin-ajax.php?action=process-xapi-statement';
+var tcActor = null;
 
 function init() {
-  scorm.init();
+  var ok = scorm.init();
+  if (ok) {
+    var name = scorm.get('cmi.core.student_name') || 'Learner';
+    var id = scorm.get('cmi.core.student_id') || '';
+    tcActor = { objectType: 'Agent', name: name };
+    if (id && id.indexOf('@') !== -1) {
+      tcActor.mbox = 'mailto:' + id;
+    } else if (id) {
+      tcActor.account = { homePage: window.location.origin, name: id };
+    } else {
+      tcActor.mbox = 'mailto:learner@' + window.location.hostname;
+    }
+  }
 }
 
 function end() {
@@ -77,9 +91,38 @@ var setInteraction = function (stmt) {
   scorm.set('cmi.interactions.' + n + '.result', resultVal);
 };
 
+var generateUUID = function () {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+};
+
+var forwardToTC = function (stmt) {
+  if (!tcActor || !stmt.verb || !stmt.object) return;
+  var statement = {
+    id: generateUUID(),
+    timestamp: new Date().toISOString(),
+    actor: tcActor,
+    verb: stmt.verb,
+    object: stmt.object
+  };
+  if (stmt.result) statement.result = stmt.result;
+  if (stmt.context) statement.context = stmt.context;
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', tcEndpoint, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(statement));
+  } catch (e) {}
+};
+
 H5P.externalDispatcher.on('xAPI', function (event) {
   var stmt = event.data.statement;
   var verbId = stmt.verb && stmt.verb.id ? stmt.verb.id.split('/').pop() : '';
+
+  // Forward to Tin Canny xAPI endpoint so Target column is populated
+  forwardToTC(stmt);
 
   if (verbId === 'answered') {
     if (stmt.result) {
