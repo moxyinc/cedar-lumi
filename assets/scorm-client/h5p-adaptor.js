@@ -100,20 +100,27 @@ var generateUUID = function () {
 
 var forwardToTC = function (stmt) {
   if (!tcActor || !stmt.verb || !stmt.object) return;
+  // TC requires object.id to be a valid IRI — H5P uses local numeric IDs, fix them
+  var obj = stmt.object;
+  if (obj.id && obj.id.indexOf('http') !== 0) {
+    obj = Object.assign({}, obj, {
+      id: window.location.origin + '/h5p/activity/' + encodeURIComponent(obj.id)
+    });
+  }
   var statement = {
     id: generateUUID(),
     timestamp: new Date().toISOString(),
     actor: tcActor,
     verb: stmt.verb,
-    object: stmt.object
+    object: obj
   };
   if (stmt.result) statement.result = stmt.result;
   if (stmt.context) statement.context = stmt.context;
   try {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', tcEndpoint, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(JSON.stringify(statement));
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.send('statement=' + encodeURIComponent(JSON.stringify(statement)));
   } catch (e) {}
 };
 
