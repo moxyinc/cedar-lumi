@@ -110,6 +110,74 @@ everything up.
 
 ---
 
+## Cedar Fix: xAPI Reporting to Tin Canny
+
+**Status:** Active — core forwarding works; Target-column field mapping pending
+confirmation from Uncanny Owl
+**Files changed:**
+- `assets/scorm-client/h5p-adaptor.js` — H5P → SCORM/xAPI bridge
+
+### Goal
+Cedar's SCORM packages need to report per-question results (not just overall
+completion/score) to Tin Canny (TC), so TC's gradebook/reporting shows which
+question ("Target") a learner answered and whether they got it right.
+
+### Background: SCORM vs xAPI in this package
+The SCORM zip uses SCORM 1.2/2004 (`SCORM_API_wrapper.js` / `pipwerks.SCORM`)
+for completion/score reporting to LearnDash. Separately, H5P content types
+emit xAPI statements (`answered`, `completed`, etc.) via
+`H5P.externalDispatcher`. `h5p-adaptor.js` listens for these and:
+1. Writes SCORM `cmi.interactions.*` / `cmi.core.score.*` / completion status
+   — the existing LearnDash path, unchanged
+2. **New:** forwards the raw xAPI statement to TC's
+   `/wp-admin/admin-ajax.php?action=process-xapi-statement` endpoint so TC's
+   own reporting tables get populated (Target column etc.)
+
+### Why `H5P.externalDispatcher`, not `H5P.instances`
+`H5P.instances` is empty when `h5p-adaptor.js` first runs — H5P initializes
+content asynchronously. xAPI events are dispatched with `external: true`, so
+they always reach `H5P.externalDispatcher` regardless of init timing. Hooking
+`instances` directly (tried first) missed every event.
+
+### SCORM `cmi.interactions` mapping (LearnDash path, via SCORM)
+- On `answered`: increments `interactionCount`, sets
+  `cmi.interactions.<n>.id` (question name, from
+  `object.definition.name['en-US']`, falling back to the last path segment of
+  `object.id`), `.type` (from `object.definition.interactionType`, default
+  `choice`), and `.result` (`correct` / `wrong` / `unanticipated`, derived from
+  `result.success` or `result.score.scaled === 1`)
+- On `answered` with a `result`: also calls `setCompletion(result)` as a
+  fallback, in case the content type never fires `completed`
+- On `completed`: always calls `setCompletion(result || null)` — sets
+  `cmi.core.score.*` if a score is present, and sets lesson status to
+  `completed` / `passed` / `failed` based on `cmi.student_data.mastery_score`
+  (1.2) or `cmi.scaled_passing_score` (2004)
+
+### Forwarding raw xAPI to TC (`forwardToTC`)
+- `tcActor` is built once on SCORM `init()` from `cmi.core.student_name` /
+  `cmi.core.student_id` (email → `mbox`, otherwise `account.homePage` +
+  `name`, falling back to a synthesized mbox)
+- Each xAPI statement is repackaged with a fresh UUID `id`, current
+  `timestamp`, the `tcActor`, and the original `verb` / `object` / `result` /
+  `context`
+- **`object.id` fix:** H5P objects use bare numeric local IDs (not valid
+  IRIs). TC requires a valid IRI, so non-`http` ids are rewritten to
+  `<site origin>/h5p/activity/<id>`
+- **Encoding fix (2026-03-27):** TC's `process-xapi-statement` endpoint reads
+  `$_POST['statement']`, not a raw JSON body. The request is sent as
+  `Content-Type: application/x-www-form-urlencoded` with body
+  `statement=<url-encoded JSON>` — sending `application/json` caused TC to
+  silently fail to parse the statement (Target column stayed empty)
+
+### Open / pending
+- Confirm with Uncanny Owl the exact field TC reads for the "Target" column
+  (currently assumed to be `object.definition.name`) — flagged as unconfirmed
+  in the 2026-03-25 forwarding commit
+- No automated test for the TC forwarding path yet — verify manually (see
+  Testing Checklist)
+
+---
+
 ## Previously Applied Fixes (carried forward from /Users/moxy/Lumi)
 
 These fixes were applied to the original `/Users/moxy/Lumi` working copy.
@@ -155,3 +223,6 @@ Pass criteria:
 3. Font is Libre Franklin, not Arial or system sans-serif
 4. H5PFontIcons render (tip/comment icons in IV)
 5. SCORM completion/score reports correctly to LearnDash via Tin Canny
+6. Network tab shows a POST to `/wp-admin/admin-ajax.php?action=process-xapi-statement`
+   for each `answered`/`completed` event, and TC's reporting shows a Target
+   value for each question (pending Uncanny Owl confirmation of field mapping)
