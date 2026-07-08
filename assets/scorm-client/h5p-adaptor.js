@@ -1,6 +1,7 @@
 var scorm = pipwerks.SCORM;
 var tcEndpoint = window.location.origin + '/wp-admin/admin-ajax.php?action=process-xapi-statement';
 var tcActor = null;
+var ivCompletionFired = false;
 
 function init() {
   var ok = scorm.init();
@@ -22,8 +23,28 @@ function end() {
   scorm.quit();
 }
 
+function startIVCompletionMonitor() {
+  var interval = setInterval(function () {
+    if (ivCompletionFired) { clearInterval(interval); return; }
+    var instances = (H5P && H5P.instances) ? H5P.instances : [];
+    for (var i = 0; i < instances.length; i++) {
+      var inst = instances[i];
+      if (!inst || !inst.video || typeof inst.getDuration !== 'function' || typeof inst.hasMainSummary !== 'function') continue;
+      if (inst.hasMainSummary()) continue; // summary dialog will fire completed via Submit
+      var duration = inst.getDuration();
+      var current = inst.video.getCurrentTime ? inst.video.getCurrentTime() : 0;
+      if (duration > 0 && current >= duration - 5) {
+        ivCompletionFired = true;
+        clearInterval(interval);
+        setCompletion(null);
+      }
+    }
+  }, 1000);
+}
+
 window.onload = function () {
   init();
+  startIVCompletionMonitor();
 };
 
 window.onunload = function () {
