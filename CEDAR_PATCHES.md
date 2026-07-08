@@ -110,6 +110,49 @@ everything up.
 
 ---
 
+## Cedar Fix: IV Completion Without Summary Dialog
+
+**Status:** Active — confirmed working on cedarhq.local
+**Files changed:**
+- `assets/scorm-client/h5p-adaptor.js` — added `startIVCompletionMonitor()`
+
+### Problem
+H5P Interactive Video only fires the `completed` xAPI verb when the learner
+clicks Submit in the Summary Dialog endscreen. When the Summary Dialog is
+removed (empty `summaries` array → `hasMainSummary()` returns false), the
+endscreen is never shown and `completed` is never fired. For video-only IVs
+(no quiz interactions), the `answered` fallback in `h5p-adaptor.js` also
+never fires. Result: SCORM `lesson_status` stays `incomplete` for the entire
+session regardless of how much of the video the learner watched.
+
+### Why CSS/xAPI-only fixes don't work
+The `completed` verb is only emitted from `handleSubmit` inside the endscreen
+component — there is no other code path in IV 1.27 or 1.28 that fires it.
+The three verbs IV can emit are `answered`, `completed`, and `interacted`.
+When the video reaches `H5P.Video.ENDED`, IV only updates the play button
+state — no xAPI event is triggered.
+
+### Solution
+`startIVCompletionMonitor()` polls every second from `window.onload`. For
+each H5P instance that has a `video` property and `hasMainSummary() === false`,
+it compares `getCurrentTime()` against `getDuration() - 5`. When current time
+reaches within 5 seconds of the end, it calls `setCompletion(null)` once and
+stops polling.
+
+The 5-second threshold means learners who close the video slightly before the
+very end still receive credit. With Prevent Skipping enabled (production
+setting), learners must genuinely watch to near the end to trigger it.
+
+Instances where `hasMainSummary()` returns true are skipped — those will fire
+`completed` via the Submit button as normal.
+
+### Verified
+TC Tin Can Report shows `Completed` action recorded against the module within
+seconds of seeking to within 5 seconds of the end. `lesson_status` in
+LearnDash also updates to complete.
+
+---
+
 ## Cedar Fix: xAPI Reporting to Tin Canny
 
 **Status:** Active — core forwarding works; Target-column field mapping pending
