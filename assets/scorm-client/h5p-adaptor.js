@@ -55,9 +55,11 @@ window.onload = function () {
   startIVCompletionMonitor();
 };
 
-window.onunload = function () {
-  end();
-};
+// pagehide is not blocked by Permissions-Policy: unload=() (unlike onunload).
+// This fires if the user closes the browser tab before closing TC's modal.
+// In the normal flow, TC's own modal-close handler calls LMSFinish first —
+// that is what commits the lesson_status to the WordPress database.
+window.addEventListener('pagehide', end);
 
 var interactionCount = 0;
 
@@ -175,10 +177,9 @@ H5P.externalDispatcher.on('xAPI', function (event) {
   } else if (verbId === 'completed') {
     // completed may fire with or without a result — always set lesson_status
     setCompletion(stmt.result || null);
-    // Call end() immediately rather than waiting for window.onunload.
-    // TC's modal may hide (not destroy) the iframe when the user dismisses it,
-    // which means window.onunload never fires and LMSFinish is never called.
-    // Calling end() here ensures TC sees LMSFinish right after completion is set.
-    end();
+    // Do NOT call end() here. TC's modal-close handler calls LMSFinish when
+    // the user clicks X, and that is what triggers TC's DB save + LearnDash
+    // update. Calling LMSFinish prematurely marks the session terminated, so
+    // TC's close handler gets false from LMSFinish and skips the DB write.
   }
 });

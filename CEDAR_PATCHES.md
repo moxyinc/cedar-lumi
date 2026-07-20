@@ -112,7 +112,7 @@ everything up.
 
 ## Cedar Fix: IV Completion Without Summary Dialog
 
-**Status:** Active — confirmed working on cedarhq.local
+**Status:** Active — confirmed working on cedarhq.ca (production)
 **Files changed:**
 - `assets/scorm-client/h5p-adaptor.js` — added `startIVCompletionMonitor()`
 
@@ -136,8 +136,11 @@ state — no xAPI event is triggered.
 `startIVCompletionMonitor()` polls every second from `window.onload`. For
 each H5P instance that has a `video` property and `hasMainSummary() === false`,
 it compares `getCurrentTime()` against `getDuration() - 5`. When current time
-reaches within 5 seconds of the end, it calls `setCompletion(null)` once and
-stops polling.
+reaches within 5 seconds of the end, it fires `inst.triggerXAPI('completed',
+{result:{completion:true}})` once and stops polling. The xAPI event goes
+through H5P's own event system so the statement object.id is correctly
+built from `H5PIntegration.contents`, which TC's `process-xapi-statement`
+endpoint expects.
 
 The 5-second threshold means learners who close the video slightly before the
 very end still receive credit. With Prevent Skipping enabled (production
@@ -146,10 +149,34 @@ setting), learners must genuinely watch to near the end to trigger it.
 Instances where `hasMainSummary()` returns true are skipped — those will fire
 `completed` via the Submit button as normal.
 
-### Verified
-TC Tin Can Report shows `Completed` action recorded against the module within
-seconds of seeking to within 5 seconds of the end. `lesson_status` in
-LearnDash also updates to complete.
+### Critical: do NOT call end() from the completed event handler
+
+TC (Tin Canny) provides `window.API` (the SCORM endpoint) in its SCORM player
+iframe. When the user clicks X to close TC's modal, TC's own close-handler
+JavaScript calls `LMSFinish` — this is what triggers TC's AJAX call to WordPress
+to save the lesson_status and update the LearnDash lesson status.
+
+If `end()` (→ `scorm.quit()` → `LMSFinish`) is called by content code before
+the user closes the modal, TC's SCORM API marks the session as terminated.
+When TC's close handler then tries to call `LMSFinish`, it receives `false`
+(session already terminated) and skips the DB write. Result: `lesson_status =
+'completed'` is set in TC's JS memory but never written to the WordPress DB →
+the Mark Complete button stays grey even after page reload.
+
+Evidence: `window.onunload` is blocked by `Permissions-Policy: unload=()` on
+cedarhq.ca, yet the Summary Dialog path always completed the lesson — proving
+that TC's close handler calls LMSFinish, not the content's onunload.
+
+### `window.onunload` → `pagehide`
+`Permissions-Policy: unload=()` on cedarhq.ca blocks the `unload` event but
+NOT the `pagehide` event. `pagehide` fires when the user closes the browser
+tab (bypassing TC's modal-close handler). It is registered as a fallback so
+LMSFinish is called if the browser tab closes before the user clicks TC's X.
+
+In the normal flow: monitor fires → lesson_status set → user clicks X →
+TC's close handler → LMSFinish → DB save → LearnDash activates.
+In the tab-close flow: monitor fires → lesson_status set → tab closes →
+pagehide → end() → LMSFinish → DB save.
 
 ---
 
