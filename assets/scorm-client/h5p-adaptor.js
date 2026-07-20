@@ -36,19 +36,12 @@ function startIVCompletionMonitor() {
       if (duration > 0 && current >= duration - 5) {
         ivCompletionFired = true;
         clearInterval(interval);
-        setCompletion(null);
-        forwardToTC({
-          verb: {
-            id: 'http://adlnet.gov/expapi/verbs/completed',
-            display: { 'en-US': 'completed' }
-          },
-          object: {
-            id: window.location.href,
-            objectType: 'Activity',
-            definition: { type: 'http://adlnet.gov/expapi/activities/media' }
-          },
-          result: { completion: true }
-        });
+        // Trigger through H5P's own event system so the statement gets the
+        // correct object.id (from H5PIntegration.contents) — same format TC
+        // expects when the Summary Dialog's Submit button fires completed.
+        // The event reaches H5P.externalDispatcher, which calls forwardToTC
+        // and setCompletion via the existing xAPI handler below.
+        inst.triggerXAPI('completed', { result: { completion: true } });
       }
     }
   }, 1000);
