@@ -5,6 +5,7 @@ var ivCompletionFired = false;
 
 function init() {
   var ok = scorm.init();
+  console.log('[cedar] scorm.init() =', ok, '| version =', scorm.version);
   if (ok) {
     var name = scorm.get('cmi.core.student_name') || 'Learner';
     var id = scorm.get('cmi.core.student_id') || '';
@@ -16,11 +17,13 @@ function init() {
     } else {
       tcActor.mbox = 'mailto:learner@' + window.location.hostname;
     }
+    console.log('[cedar] tcActor =', JSON.stringify(tcActor));
   }
 }
 
 function end() {
-  scorm.quit();
+  var result = scorm.quit();
+  console.log('[cedar] scorm.quit() =', result);
 }
 
 function startIVCompletionMonitor() {
@@ -72,17 +75,22 @@ var setCompletion = function (result) {
     scorm.set('cmi.core.score.max', '100');
   }
 
+  var statusToSet;
   if (!result || !result.score || masteryScore === undefined || isNaN(masteryScore)) {
-    scorm.status('set', 'completed');
+    statusToSet = 'completed';
+    scorm.status('set', statusToSet);
   } else {
     var passed = result.score.scaled >= masteryScore;
     if (scorm.version == '2004') {
-      scorm.status('set', 'completed');
+      statusToSet = 'completed';
+      scorm.status('set', statusToSet);
       scorm.set('cmi.success_status', passed ? 'passed' : 'failed');
     } else if (scorm.version == '1.2') {
-      scorm.status('set', passed ? 'passed' : 'failed');
+      statusToSet = passed ? 'passed' : 'failed';
+      scorm.status('set', statusToSet);
     }
   }
+  console.log('[cedar] setCompletion: masteryScore =', masteryScore, '| status set to', statusToSet);
 };
 
 var setInteraction = function (stmt) {
@@ -153,6 +161,7 @@ var forwardToTC = function (stmt) {
 H5P.externalDispatcher.on('xAPI', function (event) {
   var stmt = event.data.statement;
   var verbId = stmt.verb && stmt.verb.id ? stmt.verb.id.split('/').pop() : '';
+  console.log('[cedar] xAPI verb =', verbId, '| object.id =', stmt.object && stmt.object.id);
 
   // Forward to Tin Canny xAPI endpoint so Target column is populated
   forwardToTC(stmt);
