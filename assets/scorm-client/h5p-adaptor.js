@@ -37,6 +37,18 @@ function startIVCompletionMonitor() {
         ivCompletionFired = true;
         clearInterval(interval);
         setCompletion(null);
+        forwardToTC({
+          verb: {
+            id: 'http://adlnet.gov/expapi/verbs/completed',
+            display: { 'en-US': 'completed' }
+          },
+          object: {
+            id: window.location.href,
+            objectType: 'Activity',
+            definition: { type: 'http://adlnet.gov/expapi/activities/media' }
+          },
+          result: { completion: true }
+        });
       }
     }
   }, 1000);
