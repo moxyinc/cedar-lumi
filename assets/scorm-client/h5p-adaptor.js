@@ -166,5 +166,10 @@ H5P.externalDispatcher.on('xAPI', function (event) {
   } else if (verbId === 'completed') {
     // completed may fire with or without a result — always set lesson_status
     setCompletion(stmt.result || null);
+    // Call end() immediately rather than waiting for window.onunload.
+    // TC's modal may hide (not destroy) the iframe when the user dismisses it,
+    // which means window.onunload never fires and LMSFinish is never called.
+    // Calling end() here ensures TC sees LMSFinish right after completion is set.
+    end();
   }
 });
