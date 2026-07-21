@@ -82,13 +82,17 @@ var setCompletion = function (result) {
     scorm.set('cmi.core.score.raw', result.score.scaled * 100);
     scorm.set('cmi.core.score.min', '0');
     scorm.set('cmi.core.score.max', '100');
+  } else {
+    // No natural score (video-only content). Set 100/100 to match what H5P IV Summary
+    // Dialog produces when a learner checks a single "I watched this video" statement.
+    // TC's SCORM save/LearnDash trigger appears to require score.raw to be set.
+    scorm.set('cmi.core.score.raw', '100');
+    scorm.set('cmi.core.score.min', '0');
+    scorm.set('cmi.core.score.max', '100');
   }
 
   var statusToSet;
   if (!result || !result.score || masteryScore === undefined || isNaN(masteryScore)) {
-    // Use 'passed' not 'completed': TC's terminateAttempt maps 'passed'/'failed' to
-    // xAPI result.success=true/false. 'completed' produces no success field, and TC's
-    // LearnDash update requires result.success to be explicitly present.
     statusToSet = 'passed';
     scorm.status('set', statusToSet);
   } else {
