@@ -1,0 +1,49 @@
+diff --git a/node_modules/@lumieducation/h5p-html-exporter/build/HtmlExporter.js b/node_modules/@lumieducation/h5p-html-exporter/build/HtmlExporter.js
+index 2885343..6c115c0 100644
+--- a/node_modules/@lumieducation/h5p-html-exporter/build/HtmlExporter.js
++++ b/node_modules/@lumieducation/h5p-html-exporter/build/HtmlExporter.js
+@@ -528,7 +528,7 @@ var HtmlExporter = /** @class */ (function () {
+                         scripts = model.scripts
+                             .map(function (script) { return texts[script]; })
+                             .concat(additionalScripts);
+-                        return [2 /*return*/, uglify_js_1.default.minify(scripts, { output: { comments: 'some' } }).code];
++                        var _result = uglify_js_1.default.minify(scripts, { output: { comments: 'some' } }); return [2 /*return*/, _result.code !== undefined ? _result.code : scripts.join("\n")];
+                 }
+             });
+         });
+@@ -599,8 +599,12 @@ var HtmlExporter = /** @class */ (function () {
+                                                         // in the filename here, as it's only used
+                                                         // to determine the file's parent directory.
+                                                         filename, library, editor, core, usedFiles)
+-                                                    }),
+-                                                    (0, postcss_clean_1.default)()
++                                                    })
++                                                    // postcss-clean (clean-css 4.x) removed: it predates
++                                                    // @container queries (CSS 2022) and corrupts them by
++                                                    // dropping selectors inside @container blocks and
++                                                    // unwrapping named @container rules into unconditional
++                                                    // rules. CSS is left unminified to preserve correctness.
+                                                 ]
+                                             }), (0, postCssRemoveRedundantFontUrls_1.default)(undefined, library
+                                                 ? function (f) {
+@@ -608,7 +612,7 @@ var HtmlExporter = /** @class */ (function () {
+                                                 }
+                                                 : undefined), (0, postcss_url_1.default)({
+                                                 url: this.urlInternalizer(filename, library, editor, core, usedFiles)
+-                                            }), (0, postcss_clean_1.default)());
++                                            }));
+                                             _d.label = 3;
+                                         case 3:
+                                             _d.trys.push([3, , 11, 12]);
+diff --git a/node_modules/@lumieducation/h5p-html-exporter/build/framedTemplate.js b/node_modules/@lumieducation/h5p-html-exporter/build/framedTemplate.js
+index 8e5f383..917d594 100644
+--- a/node_modules/@lumieducation/h5p-html-exporter/build/framedTemplate.js
++++ b/node_modules/@lumieducation/h5p-html-exporter/build/framedTemplate.js
+@@ -11,5 +11,5 @@ var __assign = (this && this.__assign) || function () {
+     return __assign.apply(this, arguments);
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+-exports.default = (function (integration, scriptsBundle, stylesBundle, contentId) { return "\n<!doctype html>\n    <html class=\"h5p-iframe\">\n    <head>\n        <meta charset=\"utf-8\">                    \n        <script>H5PIntegration = ".concat(JSON.stringify(__assign(__assign({}, integration), { baseUrl: '.', url: '.', ajax: { setFinished: '', contentUserData: '' }, saveFreq: false, libraryUrl: '' })), ";\n\n        if (new URLSearchParams(window.location.search).get('embed') == 'true') {\n            H5PIntegration.contents['cid-' + '").concat(contentId, "'].displayOptions.embed = false;\n        } else {\n            H5PIntegration.contents['cid-' + '").concat(contentId, "'].embedCode = '<iframe src=\"' + window.location.protocol + \"//\" + window.location.host + window.location.pathname + '?embed=true' + '\" width=\":w\" height=\":h\" frameborder=\"0\" allowfullscreen=\"allowfullscreen\"></iframe>';\n            H5PIntegration.contents['cid-' + '").concat(contentId, "'].resizeCode = '';\n        }\n            \n        ").concat(scriptsBundle, "</script>\n        <style>").concat(stylesBundle, "</style>\n    </head>\n    <body>\n        <div class=\"h5p-content lag\" data-content-id=\"").concat(contentId, "\"></div>                \n    </body>\n</html>"); });
++exports.default = (function (integration, scriptsBundle, stylesBundle, contentId) { return "\n<!doctype html>\n    <html class=\"h5p-iframe\">\n    <head>\n        <meta charset=\"utf-8\">                    \n        <script>H5PIntegration = ".concat(JSON.stringify(__assign(__assign({}, integration), { baseUrl: '.', url: '.', ajax: { setFinished: '', contentUserData: '' }, saveFreq: false, libraryUrl: '', theme: { density: 'large' } })), ";\n\n        if (new URLSearchParams(window.location.search).get('embed') == 'true') {\n            H5PIntegration.contents['cid-' + '").concat(contentId, "'].displayOptions.embed = false;\n        } else {\n            H5PIntegration.contents['cid-' + '").concat(contentId, "'].embedCode = '<iframe src=\"'  + window.location.protocol + \"//\" + window.location.host + window.location.pathname + '?embed=true' + '\" width=\":w\" height=\":h\" frameborder=\"0\" allowfullscreen=\"allowfullscreen\"></iframe>';\n            H5PIntegration.contents['cid-' + '").concat(contentId, "'].resizeCode = '';\n        }\n            \n        ").concat(scriptsBundle, ";(function(){function f(){var s=\".h5p-theme-check,.h5p-theme-continue,.h5p-theme-show-solutions,.h5p-theme-retry,.h5p-theme-show-results\";document.querySelectorAll(s).forEach(function(b){b.classList.remove(\"icon-only\");b.style.setProperty(\"--is-icon-only\",\"0\",\"important\");});}var o=new MutationObserver(f);document.addEventListener(\"DOMContentLoaded\",function(){o.observe(document.body,{childList:true,subtree:true});setTimeout(f,500);f();});})();</script>\n        <style>").concat(stylesBundle, "</style>\n</head>\n    <body>\n        <div class=\"h5p-content h5p-theme h5p-large lag\" data-content-id=\"").concat(contentId, "\"></div>                \n    </body>\n</html>"); });
+ //# sourceMappingURL=framedTemplate.js.map
+\ No newline at end of file

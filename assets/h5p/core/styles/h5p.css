@@ -1,5 +1,9 @@
 /* Import common fonts */
 @import 'font-open-sans.css';
+@import 'font-libre-franklin.css';
+@import 'h5p-theme-variables.css';
+@import 'h5p-theme.css';
+@import 'h5p-fonts.css';
 /* General CSS for H5P. Licensed under the MIT License.*/
 /* Custom H5P font to use for icons. */
 @font-face {
@@ -637,4 +641,42 @@ iframe.h5peditor-semi-fullscreen {
   to {
     transform: rotate(360deg);
   }
+}
+.h5p-content { font-family: "Libre Franklin", sans-serif; }
+.h5p-content *:not(span[class*="joubel-icon"]):not(span[class*="h5p-icon"]):not([class*="FontIcon"]):not(button) { font-family: "Libre Franklin", sans-serif; }
+
+/* Cedar fix: H5PFontIcons for joubel tip/comment icons */
+@font-face {
+  font-family: 'H5PFontIcons';
+  src: url('../fonts/h5p.woff') format('woff'),
+       url('../fonts/h5p.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Cedar fix: H5PFontIcons for joubel tip/comment icons */
+@font-face {
+  font-family: 'H5PFontIcons';
+  src: url('../fonts/h5p-font-icons.woff') format('woff'),
+       url('../fonts/h5p-font-icons.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Cedar fix: H5PFontIcons for joubel tip/comment icons */
+@font-face {
+  font-family: 'H5PFontIcons';
+  src: url('../fonts/h5p-font-icons.woff') format('woff'),
+       url('../fonts/h5p-font-icons.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Cedar fix: H5PFontIcons for joubel tip/comment icons */
+@font-face {
+  font-family: 'H5PFontIcons';
+  src: url('../fonts/h5p-font-icons.woff') format('woff'),
+       url('../fonts/h5p-font-icons.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
 }
