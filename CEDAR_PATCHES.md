@@ -139,8 +139,7 @@ it compares `getCurrentTime()` against `getDuration() - 5`. When current time
 reaches within 5 seconds of the end, it fires `inst.triggerXAPI('completed',
 {result:{completion:true}})` once and stops polling. The xAPI event goes
 through H5P's own event system so the statement object.id is correctly
-built from `H5PIntegration.contents`, which TC's `process-xapi-statement`
-endpoint expects.
+built from `H5PIntegration.contents`.
 
 The 5-second threshold means learners who close the video slightly before the
 very end still receive credit. With Prevent Skipping enabled (production
@@ -149,34 +148,40 @@ setting), learners must genuinely watch to near the end to trigger it.
 Instances where `hasMainSummary()` returns true are skipped — those will fire
 `completed` via the Submit button as normal.
 
-### Critical: do NOT call end() from the completed event handler
+### How TC updates LearnDash (confirmed from call stack)
 
-TC (Tin Canny) provides `window.API` (the SCORM endpoint) in its SCORM player
-iframe. When the user clicks X to close TC's modal, TC's own close-handler
-JavaScript calls `LMSFinish` — this is what triggers TC's AJAX call to WordPress
-to save the lesson_status and update the LearnDash lesson status.
+TC's SCORM driver (`scormdriver.js`) has a `saveDataValue` hook that watches
+every `LMSSetValue` call in real time. When `cmi.core.lesson_status` is set
+to `'passed'` or `'failed'`, `saveDataValue` immediately fires an AJAX request
+(`modules.js → markComplete`) that updates the LearnDash lesson status and
+activates the Mark Complete button — **without waiting for LMSFinish**.
 
-If `end()` (→ `scorm.quit()` → `LMSFinish`) is called by content code before
-the user closes the modal, TC's SCORM API marks the session as terminated.
-When TC's close handler then tries to call `LMSFinish`, it receives `false`
-(session already terminated) and skips the DB write. Result: `lesson_status =
-'completed'` is set in TC's JS memory but never written to the WordPress DB →
-the Mark Complete button stays grey even after page reload.
+Confirmed call stack on cedarhq.ca:
+```
+setCompletion (h5p-adaptor.js)
+→ pipwerks.SCORM.data.set('cmi.core.lesson_status', 'passed')
+→ LMSSetValue (scormdriver.js)
+→ saveDataValue (scormdriver.js:269)
+→ tincannyModuleController.markComplete (modules.js:418)
+→ XMLHttpRequest → WordPress → LearnDash updated ✓
+```
 
-Evidence: `window.onunload` is blocked by `Permissions-Policy: unload=()` on
-cedarhq.ca, yet the Summary Dialog path always completed the lesson — proving
-that TC's close handler calls LMSFinish, not the content's onunload.
+`LMSFinish` / `terminateAttempt` / `xapi.terminateAttempt` are **not** involved
+in the LearnDash update. `window.onunload` calling `end()` is cleanup-only and
+is intentionally blocked by `Permissions-Policy: unload=()` on cedarhq.ca.
 
-### `window.onunload` → `pagehide`
-`Permissions-Policy: unload=()` on cedarhq.ca blocks the `unload` event but
-NOT the `pagehide` event. `pagehide` fires when the user closes the browser
-tab (bypassing TC's modal-close handler). It is registered as a fallback so
-LMSFinish is called if the browser tab closes before the user clicks TC's X.
+### Critical: score.raw must be set before lesson_status
 
-In the normal flow: monitor fires → lesson_status set → user clicks X →
-TC's close handler → LMSFinish → DB save → LearnDash activates.
-In the tab-close flow: monitor fires → lesson_status set → tab closes →
-pagehide → end() → LMSFinish → DB save.
+TC's `saveDataValue` only calls `markComplete` when `cmi.core.lesson_status`
+is set to a terminal value AND `cmi.core.score.raw` has already been set.
+For video-only content (no quiz score), `setCompletion` explicitly sets
+`score.raw = 100` before setting `lesson_status = 'passed'`. Without this,
+the monitor triggered `completed` with no score and `markComplete` never fired.
+
+### lesson_status must be 'passed' or 'failed', not 'completed'
+
+TC's `saveDataValue` only calls `markComplete` for 'passed' or 'failed', not
+for the SCORM 'completed' status. Video-only content uses 'passed'.
 
 ---
 

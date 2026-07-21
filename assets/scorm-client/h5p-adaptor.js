@@ -5,7 +5,6 @@ var ivCompletionFired = false;
 
 function init() {
   var ok = scorm.init();
-  console.log('[cedar] scorm.init() =', ok, '| version =', scorm.version);
   if (ok) {
     var name = scorm.get('cmi.core.student_name') || 'Learner';
     var id = scorm.get('cmi.core.student_id') || '';
@@ -17,13 +16,11 @@ function init() {
     } else {
       tcActor.mbox = 'mailto:learner@' + window.location.hostname;
     }
-    console.log('[cedar] tcActor =', JSON.stringify(tcActor));
   }
 }
 
 function end() {
-  var result = scorm.quit();
-  console.log('[cedar] scorm.quit() =', result);
+  scorm.quit();
 }
 
 function startIVCompletionMonitor() {
@@ -33,17 +30,12 @@ function startIVCompletionMonitor() {
     for (var i = 0; i < instances.length; i++) {
       var inst = instances[i];
       if (!inst || !inst.video || typeof inst.getDuration !== 'function' || typeof inst.hasMainSummary !== 'function') continue;
-      if (inst.hasMainSummary()) continue; // summary dialog will fire completed via Submit
+      if (inst.hasMainSummary()) continue; // summary dialog fires completed via Submit
       var duration = inst.getDuration();
       var current = inst.video.getCurrentTime ? inst.video.getCurrentTime() : 0;
       if (duration > 0 && current >= duration - 5) {
         ivCompletionFired = true;
         clearInterval(interval);
-        // Trigger through H5P's own event system so the statement gets the
-        // correct object.id (from H5PIntegration.contents) — same format TC
-        // expects when the Summary Dialog's Submit button fires completed.
-        // The event reaches H5P.externalDispatcher, which calls forwardToTC
-        // and setCompletion via the existing xAPI handler below.
         inst.triggerXAPI('completed', { result: { completion: true } });
       }
     }
@@ -55,17 +47,10 @@ window.onload = function () {
   startIVCompletionMonitor();
 };
 
-// INTENTIONALLY using window.onunload (not pagehide).
-// cedarhq.ca enforces Permissions-Policy: unload=() which BLOCKS this handler
-// from ever firing — and that is exactly what we want. TC's own modal-close
-// handler calls window.parent.API.LMSFinish(), which calls xapi.terminateAttempt()
-// to send the terminated statement that triggers the LearnDash update. That only
-// works while t=true (session active). If our end() fires first (setting t=false),
-// TC's LMSFinish returns "false" and terminateAttempt never runs.
-// By using onunload (blocked on cedarhq.ca), end() never fires and t stays true.
-// On cedarhq.local (no Permissions-Policy), onunload fires on iframe teardown —
-// after TC's close handler has already called LMSFinish, so t is already false
-// and our call is a harmless no-op.
+// cedarhq.ca enforces Permissions-Policy: unload=() which blocks this from firing.
+// That is fine — LearnDash is updated by TC's saveDataValue hook in scormdriver.js
+// the moment LMSSetValue('cmi.core.lesson_status', 'passed') is called, not at
+// session end. end() here is cleanup-only; blocked on cedarhq.ca, harmless no-op.
 window.onunload = function () { end(); };
 
 var interactionCount = 0;
@@ -83,9 +68,8 @@ var setCompletion = function (result) {
     scorm.set('cmi.core.score.min', '0');
     scorm.set('cmi.core.score.max', '100');
   } else {
-    // No natural score (video-only content). Set 100/100 to match what H5P IV Summary
-    // Dialog produces when a learner checks a single "I watched this video" statement.
-    // TC's SCORM save/LearnDash trigger appears to require score.raw to be set.
+    // No natural score (video-only content). TC's saveDataValue → markComplete path
+    // requires score.raw to be set before lesson_status, so set 100/100.
     scorm.set('cmi.core.score.raw', '100');
     scorm.set('cmi.core.score.min', '0');
     scorm.set('cmi.core.score.max', '100');
@@ -106,7 +90,6 @@ var setCompletion = function (result) {
       scorm.status('set', statusToSet);
     }
   }
-  console.log('[cedar] setCompletion: masteryScore =', masteryScore, '| status set to', statusToSet);
 };
 
 var setInteraction = function (stmt) {
@@ -127,7 +110,6 @@ var setInteraction = function (stmt) {
     : 'choice';
   scorm.set('cmi.interactions.' + n + '.type', iType);
 
-  // Determine result: prefer success flag, fall back to score
   var resultVal = 'unanticipated';
   if (stmt.result) {
     if (stmt.result.success === true) {
@@ -177,23 +159,15 @@ var forwardToTC = function (stmt) {
 H5P.externalDispatcher.on('xAPI', function (event) {
   var stmt = event.data.statement;
   var verbId = stmt.verb && stmt.verb.id ? stmt.verb.id.split('/').pop() : '';
-  console.log('[cedar] xAPI verb =', verbId, '| object.id =', stmt.object && stmt.object.id);
 
-  // Forward to Tin Canny xAPI endpoint so Target column is populated
   forwardToTC(stmt);
 
   if (verbId === 'answered') {
     if (stmt.result) {
       setInteraction(stmt);
-      // Set score/status on answered as fallback (in case completed never fires)
       setCompletion(stmt.result);
     }
   } else if (verbId === 'completed') {
-    // completed may fire with or without a result — always set lesson_status
     setCompletion(stmt.result || null);
-    // Do NOT call end() here. TC's modal-close handler calls LMSFinish when
-    // the user clicks X, and that is what triggers TC's DB save + LearnDash
-    // update. Calling LMSFinish prematurely marks the session terminated, so
-    // TC's close handler gets false from LMSFinish and skips the DB write.
   }
 });
