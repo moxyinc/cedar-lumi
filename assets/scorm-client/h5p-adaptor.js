@@ -55,11 +55,18 @@ window.onload = function () {
   startIVCompletionMonitor();
 };
 
-// pagehide is not blocked by Permissions-Policy: unload=() (unlike onunload).
-// This fires if the user closes the browser tab before closing TC's modal.
-// In the normal flow, TC's own modal-close handler calls LMSFinish first —
-// that is what commits the lesson_status to the WordPress database.
-window.addEventListener('pagehide', end);
+// INTENTIONALLY using window.onunload (not pagehide).
+// cedarhq.ca enforces Permissions-Policy: unload=() which BLOCKS this handler
+// from ever firing — and that is exactly what we want. TC's own modal-close
+// handler calls window.parent.API.LMSFinish(), which calls xapi.terminateAttempt()
+// to send the terminated statement that triggers the LearnDash update. That only
+// works while t=true (session active). If our end() fires first (setting t=false),
+// TC's LMSFinish returns "false" and terminateAttempt never runs.
+// By using onunload (blocked on cedarhq.ca), end() never fires and t stays true.
+// On cedarhq.local (no Permissions-Policy), onunload fires on iframe teardown —
+// after TC's close handler has already called LMSFinish, so t is already false
+// and our call is a harmless no-op.
+window.onunload = function () { end(); };
 
 var interactionCount = 0;
 
