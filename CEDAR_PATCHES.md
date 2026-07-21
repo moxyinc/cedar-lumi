@@ -325,12 +325,13 @@ without touching the DB records.
 
 To push a SCORM code update without losing existing completions:
 
-1. **SSH into cedarhq.ca** and locate TC's extracted content directory for the
-   entry — typically somewhere under `wp-content/uploads/uncanny-snc/<entry-id>/`
-   (confirm the exact path via the server file manager or SSH `find`)
-2. **Delete the extracted files** in that directory (not the TC DB entry itself)
-3. TC will re-extract the newly uploaded zip on the next page load
-4. Learner completion records in MySQL are untouched — completed lessons stay green
+1. **Upload the new zip** to the existing TC content entry via WP admin first
+2. **Via FTP/SSH**, navigate to `wp-content/uploads/uncanny-snc/<entry-id>/`
+   (e.g. `uncanny-snc/46/` for entry ID 46 — confirmed path on cedarhq.ca)
+3. **Delete everything inside that folder** — all files and subfolders (`assets/`,
+   `fonts/`, `index.html`, `h5p-adaptor.js`, etc.) — the folder itself can stay
+4. TC re-extracts the newly uploaded zip on the next page load
+5. Learner completion records in MySQL are untouched — completed lessons stay green
 
 ### NEVER create a new TC content entry to replace an existing one
 
