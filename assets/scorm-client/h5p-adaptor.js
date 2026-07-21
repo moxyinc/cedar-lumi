@@ -86,7 +86,10 @@ var setCompletion = function (result) {
 
   var statusToSet;
   if (!result || !result.score || masteryScore === undefined || isNaN(masteryScore)) {
-    statusToSet = 'completed';
+    // Use 'passed' not 'completed': TC's terminateAttempt maps 'passed'/'failed' to
+    // xAPI result.success=true/false. 'completed' produces no success field, and TC's
+    // LearnDash update requires result.success to be explicitly present.
+    statusToSet = 'passed';
     scorm.status('set', statusToSet);
   } else {
     var passed = result.score.scaled >= masteryScore;
