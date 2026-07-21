@@ -301,3 +301,40 @@ Pass criteria:
 6. Network tab shows a POST to `/wp-admin/admin-ajax.php?action=process-xapi-statement`
    for each `answered`/`completed` event, and TC's reporting shows a Target
    value for each question (pending Uncanny Owl confirmation of field mapping)
+
+---
+
+## Operational Notes: Updating SCORM Content in Tin Canny
+
+### TC does not re-extract zip files on replacement
+
+When you upload a new zip to an existing TC content entry, TC saves the new zip
+in its database but does **not** automatically re-extract and overwrite the files
+it previously extracted to disk. Learners continue to see the old extracted files
+regardless of browser cache clearing or server object/static cache purges.
+
+**Symptom:** Uploading a new zip to an existing TC entry, logging out and back in,
+and clearing all caches — the old content is still served.
+
+### Safe update procedure when students have existing completion records
+
+Learner completion data (lesson_status, score, attempt history) is stored in TC's
+MySQL tables, keyed to the TC content entry ID and the learner's user ID. It is
+completely separate from the extracted files on disk. You can delete the disk files
+without touching the DB records.
+
+To push a SCORM code update without losing existing completions:
+
+1. **SSH into cedarhq.ca** and locate TC's extracted content directory for the
+   entry — typically somewhere under `wp-content/uploads/uncanny-snc/<entry-id>/`
+   (confirm the exact path via the server file manager or SSH `find`)
+2. **Delete the extracted files** in that directory (not the TC DB entry itself)
+3. TC will re-extract the newly uploaded zip on the next page load
+4. Learner completion records in MySQL are untouched — completed lessons stay green
+
+### NEVER create a new TC content entry to replace an existing one
+
+If you create a new TC content entry and point the lesson at the new entry,
+all existing completion records (linked to the old entry ID) become orphaned.
+Learners who already completed the lesson will appear incomplete. Always update
+the zip on the existing entry and clear the disk files via SSH if needed.
