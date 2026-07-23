@@ -333,6 +333,24 @@ To push a SCORM code update without losing existing completions:
 4. TC re-extracts the newly uploaded zip on the next page load
 5. Learner completion records in MySQL are untouched — completed lessons stay green
 
+### Required: set Completion Condition on each lesson's Tin Canny tab
+
+Every LearnDash Section (Topic) that uses a TC SCORM entry must have its
+Completion Condition configured. Without it, TC receives the SCORM data
+correctly but never calls `markComplete` — the button stays grey permanently
+regardless of how the learner performs.
+
+In the LearnDash lesson editor → **Tin Canny tab** → **Completion Condition**:
+set to **"Scored, result > 50"** (or your preferred threshold). This is a
+per-lesson setting and must be done each time a new lesson is created, even
+if the TC content entry itself is correctly configured.
+
+Symptom when missing: console shows `cmi.core.lesson_status = passed` and
+`cmi.core.score.raw = 100` set correctly, but no TC AJAX fires and Mark
+Complete stays inactive.
+
+---
+
 ### NEVER create a new TC content entry to replace an existing one
 
 If you create a new TC content entry and point the lesson at the new entry,
