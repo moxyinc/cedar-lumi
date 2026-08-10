@@ -3,13 +3,15 @@ import { dialog } from 'electron';
 export default async function dialog_export_save_as_show(
   title: string,
   name: string,
-  extensions: string[]
+  extensions: string[],
+  defaultPath?: string
 ): Promise<{
   file_path: string | undefined;
   canceled: boolean;
 }> {
   const result = await dialog.showSaveDialog({
     title,
+    defaultPath,
     filters: [{ name, extensions }],
     properties: ['showOverwriteConfirmation']
   });
