@@ -5,6 +5,7 @@ import content_url from './content_url';
 import content_import from './content_import';
 import content_config_write from './content_config_write';
 import setup_window_events from '../events/window/setup_window_events';
+import { cedarVersion } from '../../package.json';
 
 export default async function window_open(
   ctx: Context,
@@ -41,6 +42,11 @@ export default async function window_open(
   }
 
   await setup_window_events(ctx, win);
+
+  win.on('page-title-updated', (event, title) => {
+    event.preventDefault();
+    win.setTitle(`${title} — Cedar v${cedarVersion}`);
+  });
 
   ctx.log.info(`Opened window for content ${content_id}`);
 
