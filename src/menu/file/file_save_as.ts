@@ -4,6 +4,8 @@ import show_dialog_save_as from '../../ops/dialog_save_as';
 import window_get_active from '../../ops/window_get_active';
 import window_backdrop_show from '../../ops/window_backdrop_show';
 import window_get_content_id from '../../ops/window_get_content_id';
+import User from '../../models/User';
+import { cedarVersion } from '../../../package.json';
 
 export default function file_save_as(ctx: Context): MenuItem {
   return {
@@ -14,7 +16,19 @@ export default function file_save_as(ctx: Context): MenuItem {
       const active_window = await window_get_active();
       const content_id = await window_get_content_id(active_window);
 
-      const { file_path, canceled } = await show_dialog_save_as();
+      let defaultFilename = `content_cedar-v${cedarVersion}_${new Date().toISOString().slice(0, 10)}.h5p`;
+      try {
+        const metadata = await ctx.h5pEditor.contentManager.getContentMetadata(
+          content_id,
+          new User()
+        );
+        if (metadata.title) {
+          const clean = metadata.title.replace(/[^a-zA-Z\d\s]/g, '').replace(/\s/g, '');
+          defaultFilename = `${clean}_cedar-v${cedarVersion}_${new Date().toISOString().slice(0, 10)}.h5p`;
+        }
+      } catch {}
+
+      const { file_path, canceled } = await show_dialog_save_as(defaultFilename);
 
       if (canceled) {
         return;
