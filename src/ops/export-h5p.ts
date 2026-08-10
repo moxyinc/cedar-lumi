@@ -4,6 +4,7 @@ import promisePipe from 'promisepipe';
 import { withDir } from 'tmp-promise';
 import scopackager from 'simple-scorm-packager';
 import HtmlExporter from '@lumieducation/h5p-html-exporter';
+import { cedarVersion } from '../../package.json';
 import {
   IUser,
   H5PEditor,
@@ -165,7 +166,7 @@ export async function exportScorm(
           startingPage: 'index.html',
           source: tmpDir,
           package: {
-            version: '1.0.0',
+            version: cedarVersion,
             zip: true,
             outputFolder: _path.dirname(path),
             date: new Date().toISOString().slice(0, 10)
