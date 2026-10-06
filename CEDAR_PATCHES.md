@@ -364,6 +364,19 @@ identically under any charset the server declares. `cedar-custom.*` and
 
 ---
 
+## node_modules Patches (patch-package)
+
+Files in `patches/` are re-applied automatically after every `npm install`
+(`"postinstall": "patch-package"` in `package.json`). A patch that isn't
+committed here is lost on the next install or fresh clone.
+
+| Patch | What it does |
+|-------|--------------|
+| `@lumieducation+h5p-html-exporter+9.3.3.patch` | UglifyJS fallback in the HTML exporter. |
+| `@lumieducation+h5p-server+9.3.3.patch` | `SemanticsEnforcer.js`: accepts `hsl()`/`hsla()` colours in rich-text styles (text colour, text background, table background and border colour). The H5P rich-text editor writes palette colours as `hsl(...)`, and the stock enforcer only allows hex and `rgb()`/`rgba()`, so those colours were silently stripped when content was saved. The added pattern only allows digits, commas, spaces, `.` and `%` inside the parentheses. |
+
+---
+
 ## Previously Applied Fixes (carried forward from /Users/moxy/Lumi)
 
 These fixes were applied to the original `/Users/moxy/Lumi` working copy.
