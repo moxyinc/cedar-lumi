@@ -52,8 +52,8 @@ const cleanAndTrim = (text: string): string => {
  *   assets/
  *     h5p-bundle.js       — all H5P library JavaScript
  *     h5p-bundle.css      — all H5P library CSS
- *     cedar-custom.js     — Cedar icon-only fix + H5P hooks
- *     cedar-custom.css    — Cedar fonts + button overrides
+ *     cedar-custom.js     — Cedar icon-only fix + IV fit-to-frame
+ *     cedar-custom.css    — Cedar fonts + T/F video cap + IV background
  *   fonts/
  *     libre-franklin-400.woff2
  *     libre-franklin-400.woff

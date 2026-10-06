@@ -7,6 +7,41 @@ Format: `## [version] — YYYY-MM-DD`
 
 ---
 
+## [1.1.0] — 2026-10-06
+
+All fixes confirmed working on cedarhq.ca.
+
+### Fixed
+- **IV icons rendering as garbage (`î¤Ÿ`)** — the exporter's minifier turned
+  H5P's ASCII icon escapes into raw UTF-8, which broke when cedarhq.ca served
+  the files with a non-UTF-8 charset. SCORM bundles (`h5p-bundle.css`,
+  `h5p-bundle.js`) and the content JSON in `index.html` are now written as
+  pure ASCII, so they work under any server charset.
+- **IV controls cut off in large Tin Canny lightboxes** — with "Use Global
+  Settings" the lightbox is wide but short, and IV sizes from width only, so
+  the control bar fell below the frame. `cedar-custom.js` now narrows and
+  centres the player so video plus controls fit the frame height. Per-block
+  lightbox sizes that already fit are unchanged; fullscreen is unaffected.
+- **Check button below the fold in T/F video popups** — a True/False question
+  used as a video popup in IV showed the video too tall for the dialog. Video
+  height is capped at 10em (scales with IV's dialog), in both SCORM and
+  Lumi's View tab.
+- **Rich-text colours stripped on save** — the `h5p-server` patch allowing
+  `hsl()`/`hsla()` colours was applied locally but never committed, so an
+  `npm install` or fresh clone would lose it. Now committed under `patches/`.
+
+### Changed
+- Space beside a narrowed IV player is black instead of white (letterboxing).
+- `cedarVersion` bumped to 1.1.0 (window title, Save As and SCORM filenames,
+  SCORM manifest).
+
+### Added
+- `CEDAR_PATCHES.md`: sections for each fix above, a "node_modules Patches"
+  section documenting both patch-package patches, and Testing Checklist
+  items 7–10.
+
+---
+
 ## [1.0.0] — 2026-08-10
 
 Initial stable Cedar release. All fixes confirmed working on cedarhq.ca

@@ -11,8 +11,8 @@ Update this file whenever a new fix is added or an existing fix changes.
 **Files changed:**
 - `src/ops/templates/scorm.ts` — new `createCedarScormTemplate` export
 - `src/ops/export-h5p.ts` — SCORM path uses cedar template + writes external files
-- `cedar/cedar.js` — Cedar icon-only fix + H5P event hooks
-- `cedar/cedar.css` — Cedar font declarations + button overrides
+- `cedar/cedar.js` — Cedar icon-only fix + IV fit-to-frame
+- `cedar/cedar.css` — Cedar font declarations + T/F video cap + IV page background (no button overrides)
 - `cedar/fonts/` — Libre Franklin and H5PFontIcons font files
 
 ### Root cause
@@ -388,7 +388,7 @@ They are carried forward in this fork as-is (committed to the branch).
 | Fix 4 | `assets/h5p/core/styles/` + fonts | Libre Franklin font declarations |
 | Fix 6 | `framedTemplate.js` (node_modules) | `h5p-theme h5p-large` classes on content div (View tab only; SCORM now handled by cedar template) |
 | Fix 7 | `assets/h5p/core/fonts/` | Inter font files |
-| Fix 8 | `assets/h5p/core/styles/h5p-theme.css` | Cedar CSS overrides — Course Presentation nav button border-radius/label fixes only. Button label overrides (`--label-display: inline-block !important`) removed — H5P's container query handles icon-only correctly. |
+| Fix 8 | `assets/h5p/core/styles/h5p-theme.css` | Cedar CSS overrides — Course Presentation nav button border-radius/label fixes, plus the T/F video popup height cap (mirrors `cedar/cedar.css` so the View tab matches SCORM; see "Cedar Fix: T/F Video Popup Height"). Button label overrides (`--label-display: inline-block !important`) removed — H5P's container query handles icon-only correctly. |
 | Fix 9 | `assets/h5p/core/fonts/` | H5PFontIcons font files |
 | Fix 10 | `assets/h5p/core/styles/h5p.css` | Libre Franklin override not blocking icon fonts |
 
@@ -425,6 +425,16 @@ Pass criteria:
 6. Network tab shows a POST to `/wp-admin/admin-ajax.php?action=process-xapi-statement`
    for each `answered`/`completed` event, and TC's reporting shows a Target
    value for each question (pending Uncanny Owl confirmation of field mapping)
+7. IV control-bar icons (play, volume, settings, fullscreen) and the big play
+   button render as symbols, not characters like `î¤Ÿ` (ASCII-only bundles)
+8. With the TC content block on "Use Global Settings", the whole IV player
+   including the control bar is visible without scrolling, centred, and the
+   space beside it is black (IV fit-to-frame). Resizing the browser window
+   re-fits it; fullscreen still fills the screen.
+9. In a True/False question used as a video popup in IV, the Check button is
+   visible without scrolling inside the dialog (T/F video popup height cap)
+10. Exported zip and the Lumi window title show the current `cedarVersion`
+    (e.g. `_cedar-v1.1.0_`)
 
 ---
 
