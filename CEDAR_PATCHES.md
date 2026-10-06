@@ -93,12 +93,14 @@ Mirrors the fix already in framedTemplate.js. Runs on DOMContentLoaded, after
      doesn't need this because the popup is wide enough in Electron, but the
      SCORM context requires it)
 
-### cedar-custom.css — fonts only
+### cedar-custom.css — fonts only (one layout exception)
 - Declares `@font-face` for Libre Franklin 400/700 (woff2 + woff)
 - Declares `@font-face` for H5PFontIcons (woff + ttf)
 - Applies Libre Franklin to `.h5p-content` without affecting icon-font spans
 - Sets `--h5p-theme-font-name` CSS variable
 - NO button class overrides — those are handled entirely by cedar-custom.js
+- Exception: the T/F video popup height cap (see "Cedar Fix: T/F Video Popup
+  Height" below). It targets a `<video>` element, not buttons.
 
 ### Implementation notes
 A `BundleCapture` object is passed from `exportH5P()` into
@@ -250,6 +252,37 @@ they always reach `H5P.externalDispatcher` regardless of init timing. Hooking
   in the 2026-03-25 forwarding commit
 - No automated test for the TC forwarding path yet — verify manually (see
   Testing Checklist)
+
+---
+
+## Cedar Fix: T/F Video Popup Height
+
+**Status:** Active. Tested against a real SCORM export in headless Chromium at
+7 player sizes (760x600 to 1920x1080).
+**Files changed:**
+- `cedar/cedar.css` (ships as `assets/cedar-custom.css` in the SCORM zip): rule appended at end, header comment updated
+- `assets/h5p/core/styles/h5p-theme.css`: same rule appended so Lumi's View tab matches the SCORM output
+
+### Root cause
+In Interactive Video, a True/False question is used as a popup to show a
+video. The video renders at its natural aspect-ratio height, which is taller
+than the IV dialog, so the Check button falls below the fold and learners
+have to scroll inside the dialog to find it.
+
+### Solution
+```css
+.h5p-interactive-video .h5p-dialog .h5p-true-false .h5p-question-video video.h5p-video {
+  max-height: 10em;
+  width: auto;
+  max-width: 100%;
+  display: block;
+  margin: 0 auto;
+}
+```
+IV sizes its dialog in em, so the cap is in em and scales with the dialog at
+any player size. 11em is about the ceiling before Check falls below the fold
+again; 10em leaves headroom. `width: auto` keeps the aspect ratio when the
+height is capped, and `margin: 0 auto` centres the narrower video.
 
 ---
 

@@ -206,3 +206,12 @@
   display: none !important;
 }
 
+/* Cedar fix: cap video height in IV True/False popup so Check stays visible.
+   Mirrors cedar/cedar.css (SCORM) so the View tab matches. See CEDAR_PATCHES.md. */
+.h5p-interactive-video .h5p-dialog .h5p-true-false .h5p-question-video video.h5p-video {
+  max-height: 10em;
+  width: auto;
+  max-width: 100%;
+  display: block;
+  margin: 0 auto;
+}
