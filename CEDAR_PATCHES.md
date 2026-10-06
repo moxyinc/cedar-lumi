@@ -93,7 +93,7 @@ Mirrors the fix already in framedTemplate.js. Runs on DOMContentLoaded, after
      doesn't need this because the popup is wide enough in Electron, but the
      SCORM context requires it)
 
-### cedar-custom.css — fonts only (one layout exception)
+### cedar-custom.css — fonts only (two layout exceptions)
 - Declares `@font-face` for Libre Franklin 400/700 (woff2 + woff)
 - Declares `@font-face` for H5PFontIcons (woff + ttf)
 - Applies Libre Franklin to `.h5p-content` without affecting icon-font spans
@@ -101,6 +101,8 @@ Mirrors the fix already in framedTemplate.js. Runs on DOMContentLoaded, after
 - NO button class overrides — those are handled entirely by cedar-custom.js
 - Exception: the T/F video popup height cap (see "Cedar Fix: T/F Video Popup
   Height" below). It targets a `<video>` element, not buttons.
+- Exception: black page background on Interactive Video pages (see "Cedar
+  Fix: IV Fit-to-Frame" below).
 
 ### Implementation notes
 A `BundleCapture` object is passed from `exportH5P()` into
@@ -283,6 +285,82 @@ IV sizes its dialog in em, so the cap is in em and scales with the dialog at
 any player size. 11em is about the ceiling before Check falls below the fold
 again; 10em leaves headroom. `width: auto` keeps the aspect ratio when the
 height is capped, and `margin: 0 auto` centres the narrower video.
+
+---
+
+## Cedar Fix: IV Fit-to-Frame (Lightbox Height)
+
+**Status:** Active. Tested in headless Chrome at 1600x700, 1200x718, 1920x900,
+2400x800, 760x600, 1366x620 and 800x1000, plus live resize and fullscreen
+enter/exit.
+**Files changed:**
+- `cedar/cedar.js` (ships as `assets/cedar-custom.js`): new IV fit-to-frame block
+
+### Problem
+Tin Canny's lightbox size is set by Tin Canny (global setting, or per content
+block), not by anything in the SCORM package. Interactive Video sizes itself
+from the frame **width** only: video height = width / aspect ratio, then the
+control bar below. With a custom 1200x718 lightbox the shapes match and it
+fits. With "Use Global Settings" the lightbox is much wider but not
+proportionally taller, so the player is taller than the frame and the control
+bar falls below the bottom edge (e.g. 1600x700 frame → 1600x936 player).
+
+### Solution
+`cedar-custom.js` measures the space the player needs besides the video
+(control bar, anything above/below), works out the widest player whose video
+plus controls fits `window.innerHeight` at the real video aspect ratio
+(`videoWidth/videoHeight`, falling back to the wrapper's shape, then 16:9),
+sets that as `max-width` on `.h5p-content`, centres it, and triggers an H5P
+`resize` so IV re-lays out. It re-runs on window resize, on fullscreen change
+and when video metadata loads.
+
+- Frame already tall enough → no cap; IV behaves exactly as before. Per-block
+  Tin Canny sizes like 1200x718 are unaffected.
+- Respects a max-width set by Lumi's "restrict width" export option (uses the
+  smaller of the two).
+- Fullscreen → cap removed so the video fills the screen; restored on exit.
+  Detected via `body.h5p-fullscreen` / `body.h5p-semi-fullscreen` (H5P adds
+  these to `<body>`). Don't query `.h5p-fullscreen` globally: IV's fullscreen
+  button has that class too, which made the first version think it was always
+  in fullscreen.
+- SCORM only. Lumi's View tab isn't in a fixed-size lightbox, so it's unchanged.
+
+### Black letterbox background
+When the player is narrowed, the page shows beside it (default white).
+`cedar/cedar.css` sets `background: #000` on `html` and `body`, scoped with
+`html:has(.h5p-interactive-video)` so other content types keep their default
+background. The thin white border around the whole lightbox is Tin Canny's
+own frame on the WordPress page, outside the SCORM package; change it in
+WordPress (e.g. Customizer → Additional CSS), not here.
+
+---
+
+## Cedar Fix: ASCII-Only Bundles (Icon Mojibake)
+
+**Status:** Active. Reproduced and verified in headless Chrome against a
+server that labels every file `charset=windows-1252`.
+**Files changed:**
+- `src/ops/export-h5p.ts`: `asciiCss()` / `asciiJs()` applied when writing `assets/h5p-bundle.css` / `assets/h5p-bundle.js`
+- `src/ops/templates/scorm.ts`: `asciiJson()` for the `H5PIntegration` JSON in `index.html`
+
+### Problem
+On cedarhq.ca every H5P icon (play, volume, fullscreen, the big play button…)
+rendered as garbage like `î¤Ÿ`. It looked fine on first view, then broke.
+
+### Root cause
+H5P's source CSS writes icon glyphs as ASCII escapes (`content: "\e91f"`), but
+the exporter's minifier converts them to raw UTF-8 bytes (`EE A4 9F`). If the
+server sends the CSS with a non-UTF-8 charset in its `Content-Type` header,
+that header wins over the page's `<meta charset="utf-8">`, the three bytes
+are read as Windows-1252 (`î ¤ Ÿ`), and the icon font gets the wrong
+characters. Text in Libre Franklin is unaffected because it's plain ASCII.
+
+### Solution
+The SCORM exporter writes the bundles as pure ASCII: CSS non-ASCII characters
+become CSS escapes (`\e91f `), JS ones become `\uXXXX`, and the same for the
+`H5PIntegration` JSON (accented content text). The files then decode
+identically under any charset the server declares. `cedar-custom.*` and
+`h5p-adaptor.js` only have non-ASCII inside comments, so they're left as-is.
 
 ---
 

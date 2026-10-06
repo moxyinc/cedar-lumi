@@ -11,6 +11,17 @@ export interface BundleCapture {
 }
 
 /**
+ * JSON.stringify with non-ASCII characters escaped as \uXXXX, so accented
+ * content text survives even if the server sends index.html with a non-UTF-8
+ * charset header (which overrides <meta charset>).
+ */
+const asciiJson = (value: unknown): string =>
+  JSON.stringify(value).replace(
+    /[^\x00-\x7f]/g,
+    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+  );
+
+/**
  * Cedar SCORM template factory.
  *
  * Returns an IExporterTemplate that:
@@ -58,7 +69,7 @@ export function createCedarScormTemplate(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>H5PIntegration = ${JSON.stringify(integration)}; H5PIntegration.reportingIsEnabled = true;</script>
+  <script>H5PIntegration = ${asciiJson(integration)}; H5PIntegration.reportingIsEnabled = true;</script>
   <script type="text/javascript" src="SCORM_API_wrapper.js"></script>
   <link rel="stylesheet" href="assets/h5p-bundle.css">
   <link rel="stylesheet" href="assets/cedar-custom.css">

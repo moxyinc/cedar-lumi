@@ -18,6 +18,25 @@ import reporterTemplate from './templates/reporter';
 
 // const t = i18next.getFixedT(null, 'lumi');
 
+/**
+ * The bundler minifies H5P's CSS, which turns ASCII escapes like
+ * `content: "\e91f"` into raw UTF-8 icon characters. If the LMS server sends
+ * the file with a non-UTF-8 charset (seen on cedarhq.ca), every icon renders
+ * as mojibake (e.g. "î¤Ÿ"). Writing the bundles as pure ASCII makes them
+ * immune to whatever charset the server declares.
+ */
+const asciiCss = (css: string): string =>
+  css.replace(
+    /[^\x00-\x7f]/gu,
+    (c) => `\\${c.codePointAt(0).toString(16)} `
+  );
+
+const asciiJs = (js: string): string =>
+  js.replace(
+    /[^\x00-\x7f]/g,
+    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`
+  );
+
 const cleanAndTrim = (text: string): string => {
   const textClean = text.replace(/[^a-zA-Z\d\s]/g, '');
   return textClean.replace(/\s/g, '');
@@ -92,14 +111,15 @@ export async function exportScorm(
       // Write the lean HTML shell
       await fsExtra.writeFile(_path.join(tmpDir, 'index.html'), html);
 
-      // Write the JS and CSS bundles as separate external files
+      // Write the JS and CSS bundles as separate external files (ASCII-only,
+      // see asciiCss)
       await fsExtra.writeFile(
         _path.join(tmpDir, 'assets', 'h5p-bundle.js'),
-        bundleCapture.scripts
+        asciiJs(bundleCapture.scripts)
       );
       await fsExtra.writeFile(
         _path.join(tmpDir, 'assets', 'h5p-bundle.css'),
-        bundleCapture.styles
+        asciiCss(bundleCapture.styles)
       );
 
       // Copy Cedar custom JS and CSS from the cedar/ directory
